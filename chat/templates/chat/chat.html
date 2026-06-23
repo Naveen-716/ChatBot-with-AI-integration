@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Senthur AI Chatbot</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #f6faf6;
+}
+
+/* ================= CHAT ICON ================= */
+.chat-toggle {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #2e7d32;
+    color: #fff;
+    width: 55px;
+    height: 55px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    cursor: pointer;
+    box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+    z-index: 1000;
+}
+
+/* ================= CHAT BOX ================= */
+.chat-box {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    width: 300px;
+    height: 380px;
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 1000;
+
+    transform: scaleY(0);
+    transform-origin: bottom right;
+    transition: transform 0.35s ease-in-out;
+}
+
+.chat-box.open {
+    transform: scaleY(1);
+}
+
+/* ================= HEADER ================= */
+.chat-header {
+    background: #2e7d32;
+    color: #ffffff;
+    padding: 10px 12px;
+    font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.chat-header span {
+    cursor: pointer;
+}
+
+/* ================= MESSAGES ================= */
+.messages {
+    flex: 1;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-y: auto;
+}
+
+.message.user {
+    background: #dcf8c6;
+    padding: 6px 10px;
+    border-radius: 12px 12px 0 12px;
+    max-width: 70%;
+    font-size: 13px;
+    margin-left: auto;
+}
+
+.message.bot {
+    background: #f1f1f1;
+    padding: 6px 10px;
+    border-radius: 12px 12px 12px 0;
+    max-width: 75%;
+    font-size: 13px;
+}
+
+/* ================= LIGHT TYPING INDICATOR ================= */
+.typing {
+    background: transparent;
+    color: #999;
+    font-size: 12px;
+    font-style: italic;
+    padding-left: 4px;
+    opacity: 0.8;
+}
+
+.typing .dots span {
+    animation: blink 1.4s infinite both;
+}
+
+.typing .dots span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+.typing .dots span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes blink {
+    0% { opacity: .2; }
+    20% { opacity: 1; }
+    100% { opacity: .2; }
+}
+
+/* ================= INPUT ================= */
+.input-area {
+    display: flex;
+    padding: 8px;
+    gap: 6px;
+    border-top: 1px solid #ddd;
+}
+
+input {
+    flex: 1;
+    padding: 6px 8px;
+    border-radius: 14px;
+    border: 1px solid #ccc;
+    font-size: 13px;
+}
+
+button {
+    background: #2e7d32;
+    color: #ffffff;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 14px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #256428;
+}
+</style>
+</head>
+
+<body>
+
+<!-- CHAT ICON -->
+<div class="chat-toggle" onclick="toggleChat()">💬</div>
+
+<!-- CHAT BOX -->
+<div class="chat-box" id="chatBox">
+    <div class="chat-header">
+        Senthur AI 🤖
+        <span onclick="toggleChat()">✖</span>
+    </div>
+
+    <div class="messages" id="messages"></div>
+
+    <div class="input-area">
+        <input type="text" id="userInput" placeholder="Type a message...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+</div>
+
+<script>
+let greeted = false;
+
+function toggleChat() {
+    const box = document.getElementById("chatBox");
+    box.classList.toggle("open");
+
+    if (!greeted && box.classList.contains("open")) {
+        document.getElementById("messages").innerHTML += `
+            <div class="message bot">
+                👋 Hello! I am Senthur Poultry AI.<br>
+                Ask me about prices, locations or services.
+            </div>`;
+        greeted = true;
+    }
+}
+
+/* CSRF */
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        document.cookie.split(';').forEach(c => {
+            if (c.trim().startsWith(name + '=')) {
+                cookieValue = decodeURIComponent(c.trim().substring(name.length + 1));
+            }
+        });
+    }
+    return cookieValue;
+}
+const csrftoken = getCookie('csrftoken');
+
+function sendMessage() {
+    const input = document.getElementById("userInput");
+    const messages = document.getElementById("messages");
+    const msg = input.value.trim();
+    if (!msg) return;
+
+    messages.innerHTML += `<div class="message user">${msg}</div>`;
+    input.value = "";
+    messages.scrollTop = messages.scrollHeight;
+
+    // LIGHT TYPING
+    const typingDiv = document.createElement("div");
+    typingDiv.className = "typing";
+    typingDiv.innerHTML = `Bot is typing<span class="dots">
+        <span>.</span><span>.</span><span>.</span>
+    </span>`;
+    messages.appendChild(typingDiv);
+    messages.scrollTop = messages.scrollHeight;
+
+    fetch("/send/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-CSRFToken": csrftoken
+        },
+        body: "message=" + encodeURIComponent(msg)
+    })
+    .then(res => res.json())
+    .then(data => {
+        typingDiv.remove();
+        messages.innerHTML += `<div class="message bot">${data.reply}</div>`;
+        messages.scrollTop = messages.scrollHeight;
+    });
+}
+</script>
+
+</body>
+</html>
